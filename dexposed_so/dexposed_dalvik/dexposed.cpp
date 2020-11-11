@@ -62,8 +62,7 @@ static void dvmThrowNullPointerException(const char* msg) {
     dvmThrowException("Ljava/lang/NullPointerException;", msg);
 }
 
-static void dvmThrowClassCastException(ClassObject* actual, ClassObject* desired)
-{
+static void dvmThrowClassCastException(ClassObject* actual, ClassObject* desired) {
     dvmThrowExceptionFmt("Ljava/lang/ClassCastException;",
         "%s cannot be cast to %s", actual->descriptor, desired->descriptor);
 }
@@ -88,8 +87,7 @@ static Object* dvmDecodeIndirectRef(::Thread* self, jobject jobj) {
 ////////////////////////////////////////////////////////////
 // called directoy by JNI_OnLoad
 ////////////////////////////////////////////////////////////
-void initTypePointers()
-{
+void initTypePointers() {
     char sdk[PROPERTY_VALUE_MAX];
     const char *error;
 
@@ -113,7 +111,6 @@ void dexposedInfo() {
     char model[PROPERTY_VALUE_MAX];
     char rom[PROPERTY_VALUE_MAX];
     char fingerprint[PROPERTY_VALUE_MAX];
-
     
     property_get("ro.build.version.release", release, "n/a");
     property_get("ro.build.version.sdk", sdk, "n/a");
@@ -123,7 +120,9 @@ void dexposedInfo() {
     property_get("ro.build.fingerprint", fingerprint, "n/a");
 
     
-    LOGI("Starting Dexposed binary version %s, compiled for SDK %d\n", DEXPOSED_VERSION, PLATFORM_SDK_VERSION);
+    LOGI("Starting Dexposed binary version %s, compiled for SDK %d\n", 
+            DEXPOSED_VERSION, PLATFORM_SDK_VERSION);
+
     ALOGD("Phone: %s (%s), Android version %s (SDK %s)\n", model, manufacturer, release, sdk);
     ALOGD("ROM: %s\n", rom);
     ALOGD("Build fingerprint: %s\n", fingerprint);
@@ -143,8 +142,7 @@ bool isRunningDalvik() {
     }
 }
 
-extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
-{
+extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env = NULL;
     jint result = -1;
 
@@ -162,7 +160,6 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 }
 
 bool dexposedOnVmCreated(JNIEnv* env, const char* className) {
-
     keepLoadingDexposed = keepLoadingDexposed && dexposedInitMemberOffsets(env);
     if (!keepLoadingDexposed)
         return false;
@@ -195,7 +192,6 @@ bool dexposedOnVmCreated(JNIEnv* env, const char* className) {
 }
 
 static jboolean initNative(JNIEnv* env, jclass clazz) {
-
 	if (!keepLoadingDexposed) {
         ALOGE("Not initializing Dexposed because of previous errors\n");
         return false;
@@ -203,8 +199,10 @@ static jboolean initNative(JNIEnv* env, jclass clazz) {
 
     ::Thread* self = dvmThreadSelf();
 
-    dexposedHandleHookedMethod = (Method*) env->GetStaticMethodID(dexposedClass, "handleHookedMethod",
+    dexposedHandleHookedMethod = (Method*) env->GetStaticMethodID(
+        dexposedClass, "handleHookedMethod",
         "(Ljava/lang/reflect/Member;ILjava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
+
     if (dexposedHandleHookedMethod == NULL) {
         LOGE("ERROR: could not find method %s.handleHookedMethod(Member, int, Object, Object, Object[])\n", DEXPOSED_CLASS);
         dvmLogExceptionStackTrace();
@@ -213,7 +211,8 @@ static jboolean initNative(JNIEnv* env, jclass clazz) {
         return false;
     }
 
-    Method* dexposedInvokeOriginalMethodNative = (Method*) env->GetStaticMethodID(dexposedClass, "invokeOriginalMethodNative",
+    Method* dexposedInvokeOriginalMethodNative = (Method*) env->GetStaticMethodID(
+        dexposedClass, "invokeOriginalMethodNative",
         "(Ljava/lang/reflect/Member;I[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
     if (dexposedInvokeOriginalMethodNative == NULL) {
         LOGE("ERROR: could not find method %s.invokeOriginalMethodNative(Member, int, Class[], Class, Object, Object[])\n", DEXPOSED_CLASS);

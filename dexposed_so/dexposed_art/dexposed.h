@@ -77,12 +77,18 @@ namespace art {
         jobject reflectedMethod;
         jobject additionalInfo;
         mirror::ArtMethod* originalMethod;
-        const char *shorty;
+        const char* shorty;
     };
 
     static bool dexposedIsHooked(ArtMethod* method);
 
-    static void com_taobao_android_dexposed_DexposedBridge_hookMethodNative(JNIEnv* env, jclass clazz, jobject javaMethod, jobject declaredClassIndirect, jint slot, jobject additionalInfoIndirect);
+    static void com_taobao_android_dexposed_DexposedBridge_hookMethodNative(
+            JNIEnv* env, 
+            jclass clazz,
+            jobject javaMethod, 
+            jobject declaredClassIndirect, 
+            jint slot, 
+            jobject additionalInfoIndirect);
 
     static int register_com_taobao_android_dexposed_DexposedBridge(JNIEnv* env);
 

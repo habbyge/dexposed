@@ -47,18 +47,16 @@ public class DeviceCheck {
     
 	private static String getCurrentRuntimeValue() {
 		try {
-			Class<?> systemProperties = Class
-					.forName("android.os.SystemProperties");
+			Class<?> systemProperties = Class.forName("android.os.SystemProperties");
 			try {
-				Method get = systemProperties.getMethod("get", String.class,
-						String.class);
+				Method get = systemProperties.getMethod("get", String.class, String.class);
 				if (get == null) {
 					return "WTF?!";
 				}
 				try {
 					final String value = (String) get.invoke(systemProperties,
-							SELECT_RUNTIME_PROPERTY,
-							/* Assuming default is */"Dalvik");
+																									 SELECT_RUNTIME_PROPERTY,
+																									/* Assuming default is */"Dalvik");
 					if (LIB_DALVIK.equals(value)) {
 						return "Dalvik";
 					} else if (LIB_ART.equals(value)) {
