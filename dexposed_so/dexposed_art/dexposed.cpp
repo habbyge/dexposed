@@ -31,12 +31,11 @@
 
 #include "quick_argument_visitor.cpp"
 
-
 namespace art {
 
-	jclass dexposed_class = NULL;
+	jclass dexposed_class = NULL; // DexposedBridge Java类
 	jmethodID dexposed_handle_hooked_method = NULL;
-	jclass additionalhookinfo_class = NULL;
+	jclass additionalhookinfo_class = NULL; // DexposedBridge$AdditionalHookInfo
 	jfieldID  additionalhookinfo_shorty_field = NULL;
 
 	void logMethod(const char* tag, ArtMethod* method) {
@@ -62,6 +61,7 @@ namespace art {
 		}
 
 		LOG(INFO) << "dexposed: now initializing, Found Dexposed class " << DEXPOSED_CLASS;
+
 		if (register_com_taobao_android_dexposed_DexposedBridge(env) != JNI_OK) {
 			LOG(ERROR) << "dexposed: Could not register natives for " << DEXPOSED_CLASS;
 			env->ExceptionClear();
@@ -75,9 +75,9 @@ namespace art {
 		LOG(INFO) << "dexposed: initNative";
 
 		dexposed_handle_hooked_method = env->GetStaticMethodID(
-			dexposed_class, 
-			"handleHookedMethod",
-			"(Ljava/lang/reflect/Member;ILjava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
+				dexposed_class, // DexposedBridge
+				"handleHookedMethod",
+				"(Ljava/lang/reflect/Member;ILjava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
 
 		if (dexposed_handle_hooked_method == NULL) {
 			LOG(ERROR) << "dexposed: Could not find method " << DEXPOSED_CLASS << ".handleHookedMethod()";
@@ -118,14 +118,15 @@ namespace art {
 	}
 
 	extern "C" void art_quick_dexposed_invoke_handler();
+
 	static inline const void* GetQuickDexposedInvokeHandler() {
 		return reinterpret_cast<void*>(art_quick_dexposed_invoke_handler);
 	}
 
 	JValue InvokeXposedHandleHookedMethod(ScopedObjectAccessAlreadyRunnable& soa, 
-																				const char* shorty,
-	                                    	jobject rcvr_jobj, jmethodID method,
-	                                    	std::vector<jvalue>& args)
+										  const char* shorty,
+										  jobject rcvr_jobj, jmethodID method,
+										  std::vector<jvalue>& args)
 
 		SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) {
 
@@ -180,9 +181,8 @@ namespace art {
 	  invocation_args[4].l = args_jobj;
 
 	  jobject result = soa.Env()->CallStaticObjectMethodA(dexposed_class, 
-																					 							dexposed_handle_hooked_method, 
-																												invocation_args);
-
+                                                          dexposed_handle_hooked_method,
+                                                          invocation_args)
 	  // Unbox the result if necessary and return it.
 	  if (UNLIKELY(soa.Self()->IsExceptionPending())) {
 	    return zero;
@@ -211,9 +211,9 @@ namespace art {
 	// incoming reference arguments (so they survive GC). We invoke the invocation handler, which is a
 	// field within the proxy object, which will box the primitive arguments and deal with error cases.
 	extern "C" uint64_t artQuickDexposedInvokeHandler(ArtMethod* proxy_method, 
-																										Object* receiver, 
-																										Thread* self, 
-																										StackReference<ArtMethod>* sp)
+													Object* receiver, 
+													Thread* self, 
+													StackReference<ArtMethod>* sp)
 
 	SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) {
 		const bool is_static = proxy_method->IsStatic();
@@ -253,14 +253,14 @@ namespace art {
                 (DexposedHookInfo *) (proxy_method->GetEntryPointFromJni());
 #endif
 
-
 		uint32_t shorty_len = 0;
 //		const char* shorty = proxy_method->GetShorty(&shorty_len);
 		const char* shorty = hookInfo->shorty;
 		shorty_len = strlen(hookInfo->shorty);
 
 		for(int i=0; i<shorty_len; ++i){
-			LOG(INFO) << "dexposed: artQuickDexposedInvokeHandler " << "shorty[" << i << "]:" << shorty[i];
+			LOG(INFO) << "dexposed: artQuickDexposedInvokeHandler "
+			          << "shorty[" << i << "]:" << shorty[i];
 		}
 
 		BuildQuickArgumentVisitor local_ref_visitor(sp, is_static, shorty, shorty_len, &soa, &args);
@@ -315,7 +315,7 @@ namespace art {
 	  hookInfo->additionalInfo = env->NewGlobalRef(additional_info);
 	  hookInfo->originalMethod = backup_method;
 
-	  jstring shorty = (jstring)env->GetObjectField(additional_info,additionalhookinfo_shorty_field);
+	  jstring shorty = (jstring) env->GetObjectField(additional_info, additionalhookinfo_shorty_field);
 	  hookInfo->shorty = env->GetStringUTFChars(shorty, 0);
 	  LOG(INFO) << "dexposed: >>> EnableXposedHook shorty:" << hookInfo->shorty;
 
@@ -331,6 +331,9 @@ namespace art {
 	  art_method->SetAccessFlags((art_method->GetAccessFlags() & ~kAccNative) /*| kAccXposedHookedMethod*/);
 	}
 
+	/**
+	 * 对应的Java方法：DexposedBridge.hookMethodNative()
+	 */
 	static void com_taobao_android_dexposed_DexposedBridge_hookMethodNative(
 			JNIEnv* env, jclass, jobject java_method, jobject, jint,
 			jobject additional_info) {
@@ -340,6 +343,7 @@ namespace art {
 
 	    jobject javaArtMethod = env->GetObjectField(java_method,
 	            WellKnownClasses::java_lang_reflect_AbstractMethod_artMethod);
+
 	    ArtMethod* method = soa.Decode<mirror::ArtMethod*>(javaArtMethod);
 
 	    LOG(INFO) << "dexposed: >>> hookMethodNative " << method << " " << PrettyMethod(method);
@@ -351,9 +355,13 @@ namespace art {
 				== (void *) GetQuickDexposedInvokeHandler();
 	}
 
+	/**
+	 * Java方法：DexposedBridge.invokeOriginalMethodNative()
+	 */ 
 	extern "C" jobject com_taobao_android_dexposed_DexposedBridge_invokeOriginalMethodNative(
 			JNIEnv* env, jclass, jobject java_method, jint, jobject, jobject,
-			jobject thiz, jobject args)
+			jobject thiz, jobject args) 
+
 	SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) {
 
 		LOG(INFO) << "dexposed: >>> invokeOriginalMethodNative";
@@ -366,6 +374,9 @@ namespace art {
 #endif
 	}
 
+	/**
+	 * Java方法：DexposedBridge.invokeSuperNative()
+	 */
 	extern "C" jobject com_taobao_android_dexposed_DexposedBridge_invokeSuperNative(
 			JNIEnv* env, 
 			jclass, 
@@ -403,7 +414,7 @@ namespace art {
 			"hookMethodNative", 
 			"(Ljava/lang/reflect/Member;Ljava/lang/Class;ILjava/lang/Object;)V",
 			(void*) com_taobao_android_dexposed_DexposedBridge_hookMethodNative 
-		},
+		}, 
 		{ 
 			"invokeOriginalMethodNative", 
 			"(Ljava/lang/reflect/Member;I[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;",
@@ -417,9 +428,9 @@ namespace art {
 	};
 
 	static int register_com_taobao_android_dexposed_DexposedBridge(JNIEnv* env) {
-		return env->RegisterNatives(dexposed_class, 
-																dexposedMethods, 
-															  sizeof(dexposedMethods) / sizeof(dexposedMethods[0]));
+
+		return env->RegisterNatives(dexposed_class, dexposedMethods, 
+				sizeof(dexposedMethods) / sizeof(dexposedMethods[0]));
 	}
 }
 

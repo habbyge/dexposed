@@ -168,9 +168,12 @@ class QuickArgumentVisitor {
   static constexpr bool kQuickSoftFloatAbi = false;  // This is a hard float ABI.
   static constexpr size_t kNumQuickGprArgs = 5;  // 5 arguments passed in GPRs.
   static constexpr size_t kNumQuickFprArgs = 8;  // 8 arguments passed in FPRs.
-  static constexpr size_t kQuickCalleeSaveFrame_RefAndArgs_Fpr1Offset = 16;  // Offset of first FPR arg.
-  static constexpr size_t kQuickCalleeSaveFrame_RefAndArgs_Gpr1Offset = 80 + 4*8;  // Offset of first GPR arg.
-  static constexpr size_t kQuickCalleeSaveFrame_RefAndArgs_LrOffset = 168 + 4*8;  // Offset of return address.
+  // Offset of first FPR arg.
+  static constexpr size_t kQuickCalleeSaveFrame_RefAndArgs_Fpr1Offset = 16;
+  // Offset of first GPR arg.
+  static constexpr size_t kQuickCalleeSaveFrame_RefAndArgs_Gpr1Offset = 80 + 4 * 8;
+   // Offset of return address.
+  static constexpr size_t kQuickCalleeSaveFrame_RefAndArgs_LrOffset = 168 + 4 * 8;
   static size_t GprIndexToGprOffset(uint32_t gpr_index) {
     switch (gpr_index) {
       case 0: return (4 * GetBytesPerGprSpillLocation(kRuntimeISA));
@@ -203,8 +206,12 @@ class QuickArgumentVisitor {
     return *reinterpret_cast<uintptr_t*>(lr);
   }
 
-  QuickArgumentVisitor(StackReference<mirror::ArtMethod>* sp, bool is_static, const char* shorty,
-                       uint32_t shorty_len) SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) :
+  QuickArgumentVisitor(StackReference<mirror::ArtMethod>* sp,
+                       bool is_static,
+                       const char* shorty,
+                       uint32_t shorty_len)
+                       SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) :
+
           is_static_(is_static), shorty_(shorty), shorty_len_(shorty_len),
           gpr_args_(reinterpret_cast<byte*>(sp) + kQuickCalleeSaveFrame_RefAndArgs_Gpr1Offset),
           fpr_args_(reinterpret_cast<byte*>(sp) + kQuickCalleeSaveFrame_RefAndArgs_Fpr1Offset),
@@ -238,7 +245,8 @@ class QuickArgumentVisitor {
   }
 
   bool IsSplitLongOrDouble() const {
-    if ((GetBytesPerGprSpillLocation(kRuntimeISA) == 4) || (GetBytesPerFprSpillLocation(kRuntimeISA) == 4)) {
+    if ((GetBytesPerGprSpillLocation(kRuntimeISA) == 4) ||
+            (GetBytesPerFprSpillLocation(kRuntimeISA) == 4)) {
       return is_split_long_or_double_;
     } else {
       return false;  // An optimization for when GPR and FPRs are 64bit.
@@ -285,73 +293,46 @@ class QuickArgumentVisitor {
     for (uint32_t shorty_index = 1; shorty_index < shorty_len_; ++shorty_index) {
       cur_type_ = Primitive::GetType(shorty_[shorty_index]);
       switch (cur_type_) {
-        case Primitive::kPrimNot:
-        case Primitive::kPrimBoolean:
-        case Primitive::kPrimByte:
-        case Primitive::kPrimChar:
-        case Primitive::kPrimShort:
-        case Primitive::kPrimInt:
-          is_split_long_or_double_ = false;
-          Visit();
-          if (!kQuickSoftFloatAbi || kNumQuickGprArgs == gpr_index_) {
-            stack_index_++;
-          }
+      case Primitive::kPrimNot:
+      case Primitive::kPrimBoolean:
+      case Primitive::kPrimByte:
+      case Primitive::kPrimChar:
+      case Primitive::kPrimShort:
+      case Primitive::kPrimInt:
+        is_split_long_or_double_ = false;
+        Visit();
+        if (!kQuickSoftFloatAbi || kNumQuickGprArgs == gpr_index_) {
+          stack_index_++;
+        }
+        if (gpr_index_ < kNumQuickGprArgs) {
+          gpr_index_++;
+        }
+        break;
+
+      case Primitive::kPrimFloat:
+        is_split_long_or_double_ = false;
+        Visit();
+        if (kQuickSoftFloatAbi) {
           if (gpr_index_ < kNumQuickGprArgs) {
             gpr_index_++;
-          }
-          break;
-        case Primitive::kPrimFloat:
-          is_split_long_or_double_ = false;
-          Visit();
-          if (kQuickSoftFloatAbi) {
-            if (gpr_index_ < kNumQuickGprArgs) {
-              gpr_index_++;
-            } else {
-              stack_index_++;
-            }
           } else {
-            if ((kNumQuickFprArgs != 0) && (fpr_index_ + 1 < kNumQuickFprArgs + 1)) {
-              fpr_index_++;
-            }
             stack_index_++;
           }
-          break;
-        case Primitive::kPrimDouble:
-        case Primitive::kPrimLong:
-          if (kQuickSoftFloatAbi || (cur_type_ == Primitive::kPrimLong)) {
-            is_split_long_or_double_ = (GetBytesPerGprSpillLocation(kRuntimeISA) == 4) &&
-                ((gpr_index_ + 1) == kNumQuickGprArgs);
-            Visit();
-            if (!kQuickSoftFloatAbi || kNumQuickGprArgs == gpr_index_) {
-              if (kBytesStackArgLocation == 4) {
-                stack_index_+= 2;
-              } else {
-                CHECK_EQ(kBytesStackArgLocation, 8U);
-                stack_index_++;
-              }
-            }
-            if (gpr_index_ < kNumQuickGprArgs) {
-              gpr_index_++;
-              if (GetBytesPerGprSpillLocation(kRuntimeISA) == 4) {
-                if (gpr_index_ < kNumQuickGprArgs) {
-                  gpr_index_++;
-                } else if (kQuickSoftFloatAbi) {
-                  stack_index_++;
-                }
-              }
-            }
-          } else {
-            is_split_long_or_double_ = (GetBytesPerFprSpillLocation(kRuntimeISA) == 4) &&
-                ((fpr_index_ + 1) == kNumQuickFprArgs);
-            Visit();
-            if ((kNumQuickFprArgs != 0) && (fpr_index_ + 1 < kNumQuickFprArgs + 1)) {
-              fpr_index_++;
-              if (GetBytesPerFprSpillLocation(kRuntimeISA) == 4) {
-                if ((kNumQuickFprArgs != 0) && (fpr_index_ + 1 < kNumQuickFprArgs + 1)) {
-                  fpr_index_++;
-                }
-              }
-            }
+        } else {
+          if ((kNumQuickFprArgs != 0) && (fpr_index_ + 1 < kNumQuickFprArgs + 1)) {
+            fpr_index_++;
+          }
+          stack_index_++;
+        }
+        break;
+
+      case Primitive::kPrimDouble:
+      case Primitive::kPrimLong:
+        if (kQuickSoftFloatAbi || (cur_type_ == Primitive::kPrimLong)) {
+          is_split_long_or_double_ = (GetBytesPerGprSpillLocation(kRuntimeISA) == 4) &&
+              ((gpr_index_ + 1) == kNumQuickGprArgs);
+          Visit();
+          if (!kQuickSoftFloatAbi || kNumQuickGprArgs == gpr_index_) {
             if (kBytesStackArgLocation == 4) {
               stack_index_+= 2;
             } else {
@@ -359,9 +340,39 @@ class QuickArgumentVisitor {
               stack_index_++;
             }
           }
-          break;
-        default:
-          LOG(FATAL) << "Unexpected type: " << cur_type_ << " in " << shorty_;
+          if (gpr_index_ < kNumQuickGprArgs) {
+            gpr_index_++;
+            if (GetBytesPerGprSpillLocation(kRuntimeISA) == 4) {
+              if (gpr_index_ < kNumQuickGprArgs) {
+                gpr_index_++;
+              } else if (kQuickSoftFloatAbi) {
+                stack_index_++;
+              }
+            }
+          }
+        } else {
+          is_split_long_or_double_ = (GetBytesPerFprSpillLocation(kRuntimeISA) == 4) &&
+              ((fpr_index_ + 1) == kNumQuickFprArgs);
+          Visit();
+          if ((kNumQuickFprArgs != 0) && (fpr_index_ + 1 < kNumQuickFprArgs + 1)) {
+            fpr_index_++;
+            if (GetBytesPerFprSpillLocation(kRuntimeISA) == 4) {
+              if ((kNumQuickFprArgs != 0) && (fpr_index_ + 1 < kNumQuickFprArgs + 1)) {
+                fpr_index_++;
+              }
+            }
+          }
+          if (kBytesStackArgLocation == 4) {
+            stack_index_+= 2;
+          } else {
+            CHECK_EQ(kBytesStackArgLocation, 8U);
+            stack_index_++;
+          }
+        }
+        break;
+        
+      default:
+        LOG(FATAL) << "Unexpected type: " << cur_type_ << " in " << shorty_;
       }
     }
   }

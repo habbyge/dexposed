@@ -1,0 +1,40 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${default}"
+            ],
+
+            "compilerPath": "/usr/bin/clang",
+                
+            "defines": [],
+            "macFrameworkPath": [
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+            ],
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        },
+        {
+            "name": "Android",
+            "includePath": [
+                "${workspaceFolder}/src",
+
+                "/Users/habbyge/dexposed/dexposed",
+                "/Users/habbyge/dexposed/dexposed_so",
+                "/Users/habbyge/dexposed/sample",
+                
+                "/Users/habbyge/Library/Android/sdk/ndk-bundle"
+            ],
+            "defines": [
+            ],
+            "compilerPath": "/Users/habbyge/Library/Android/sdk/ndk-bundle/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
